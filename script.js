@@ -40,9 +40,14 @@ function fmtUSD(value) {
 
 async function fetchDailyAdjusted(ticker) {
   const url = `${API_BASE}?function=TIME_SERIES_DAILY_ADJUSTED&symbol=${encodeURIComponent(ticker)}&outputsize=full&apikey=${ALPHA_VANTAGE_API_KEY}`;
-  const resp = await fetch(url);
+  const resp = await fetch(url, { cache: "no-store" });
   if (!resp.ok) throw new Error(`Network error: ${resp.status}`);
-  const data = await resp.json();
+  let data;
+  try {
+    data = await resp.json();
+  } catch (e) {
+    throw new Error("Received non-JSON response from API.");
+  }
 
   if (data["Error Message"]) {
     // Alpha Vantage commonly returns "Invalid API call" here for bad tickers
@@ -55,7 +60,7 @@ async function fetchDailyAdjusted(ticker) {
     // e.g., key issues or usage info
     throw new Error(data["Information"]);
   }
-  const series = data["Time Series (Daily)"];
+  const series = data["Time Series (Daily)"] || data["Time Series (Daily) "] || data["time_series_daily"];
   if (!series || Object.keys(series).length === 0) {
     throw new Error("No daily time series returned. Check the ticker or try again later.");
   }
