@@ -90,13 +90,20 @@ async function fetchDailyAdjusted(ticker) {
 }
 
 async function fetchDailyNonAdjusted(ticker) {
-  const url = `${API_BASE}?function=TIME_SERIES_DAILY&symbol=${encodeURIComponent(ticker)}&outputsize=full&apikey=${ALPHA_VANTAGE_API_KEY}`;
+  const url = `${API_BASE}?function=TIME_SERIES_DAILY&symbol=${encodeURIComponent(ticker)}&outputsize=compact&datatype=json&apikey=${ALPHA_VANTAGE_API_KEY}`;
   const resp = await fetch(url, { cache: "no-store" });
   if (!resp.ok) throw new Error(`Network error: ${resp.status}`);
+  const clone = resp.clone();
   let data;
   try {
     data = await resp.json();
   } catch (e) {
+    try {
+      const text = await clone.text();
+      if (typeof text === "string" && text.toLowerCase().includes("premium")) {
+        throw new Error("Alpha Vantage returned a premium notice for the free endpoint. Please wait and try again, or use a different API key.");
+      }
+    } catch {}
     throw new Error("Received non-JSON response from API.");
   }
   if (data["Note"]) {
@@ -106,6 +113,10 @@ async function fetchDailyNonAdjusted(ticker) {
     throw new Error("Ticker not found or invalid API call. Please try another symbol.");
   }
   if (data["Information"]) {
+    const info = String(data["Information"]).toLowerCase();
+    if (info.includes("premium")) {
+      throw new Error("Alpha Vantage indicated this request requires premium. Please try again later or use a different API key.");
+    }
     throw new Error(data["Information"]);
   }
 
