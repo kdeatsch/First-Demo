@@ -45,13 +45,20 @@ async function fetchDailyAdjusted(ticker) {
   const data = await resp.json();
 
   if (data["Error Message"]) {
-    throw new Error("Ticker not found. Please try another.");
+    // Alpha Vantage commonly returns "Invalid API call" here for bad tickers
+    throw new Error("Ticker not found or invalid API call. Please try another symbol.");
   }
   if (data["Note"]) {
     throw new Error("API rate limit reached. Please wait and try again.");
   }
+  if (data["Information"]) {
+    // e.g., key issues or usage info
+    throw new Error(data["Information"]);
+  }
   const series = data["Time Series (Daily)"];
-  if (!series) throw new Error("Unexpected API response. Try again.");
+  if (!series || Object.keys(series).length === 0) {
+    throw new Error("No daily time series returned. Check the ticker or try again later.");
+  }
 
   const parsed = Object.entries(series)
     .map(([date, o]) => ({
