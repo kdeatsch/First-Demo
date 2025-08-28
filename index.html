@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Stock Prediction Game</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <h1>Stock Prediction Game</h1>
+
+      <section class="controls">
+        <label for="tickerInput">Enter stock ticker:</label>
+        <input id="tickerInput" type="text" placeholder="e.g., MSFT or COF" />
+        <button id="startBtn">Start Game</button>
+        <div id="error" class="error" aria-live="polite"></div>
+      </section>
+
+      <section class="status">
+        <div class="status-row">
+          <div><strong>Ticker:</strong> <span id="currentTicker">—</span></div>
+          <div><strong>Current date:</strong> <span id="currentDate">—</span></div>
+          <div><strong>Current price:</strong> $<span id="currentPrice">—</span></div>
+          <div><strong>Score:</strong> <span id="score">0</span></div>
+        </div>
+        <div id="message" class="message" aria-live="polite"></div>
+      </section>
+
+      <section class="chart-wrap">
+        <canvas id="priceChart" width="900" height="400"></canvas>
+      </section>
+
+      <section class="game-actions">
+        <button id="btnUp" disabled>Predict Up</button>
+        <button id="btnDown" disabled>Predict Down</button>
+        <button id="btnEnd" disabled>End Game</button>
+      </section>
+
+      <footer>
+        <p>
+          Data provided by Alpha Vantage. Prices are adjusted close values. Subject to free API rate limits.
+        </p>
+      </footer>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="./script.js"></script>
+  </body>
+  </html>
+
