@@ -39,30 +39,43 @@ function fmtUSD(value) {
 }
 
 async function fetchDailyAdjusted(ticker) {
+  // Try adjusted endpoint first; on premium notice, fall back to non-adjusted
   const url = `${API_BASE}?function=TIME_SERIES_DAILY_ADJUSTED&symbol=${encodeURIComponent(ticker)}&outputsize=full&apikey=${ALPHA_VANTAGE_API_KEY}`;
   const resp = await fetch(url, { cache: "no-store" });
   if (!resp.ok) throw new Error(`Network error: ${resp.status}`);
+  const clone = resp.clone();
   let data;
   try {
     data = await resp.json();
   } catch (e) {
+    try {
+      const text = await clone.text();
+      if (typeof text === "string" && text.toLowerCase().includes("premium")) {
+        return await fetchDailyNonAdjusted(ticker);
+      }
+    } catch {}
     throw new Error("Received non-JSON response from API.");
   }
 
-  if (data["Error Message"]) {
-    // Alpha Vantage commonly returns "Invalid API call" here for bad tickers
-    throw new Error("Ticker not found or invalid API call. Please try another symbol.");
-  }
   if (data["Note"]) {
     throw new Error("API rate limit reached. Please wait and try again.");
   }
   if (data["Information"]) {
-    // e.g., key issues or usage info
+    const info = String(data["Information"]).toLowerCase();
+    if (info.includes("premium")) {
+      return await fetchDailyNonAdjusted(ticker);
+    }
     throw new Error(data["Information"]);
   }
-  const series = data["Time Series (Daily)"] || data["Time Series (Daily) "] || data["time_series_daily"];
+  if (data["Error Message"]) {
+    // Alpha Vantage commonly returns "Invalid API call" here for bad tickers
+    throw new Error("Ticker not found or invalid API call. Please try another symbol.");
+  }
+
+  const series = data["Time Series (Daily)"];
   if (!series || Object.keys(series).length === 0) {
-    throw new Error("No daily time series returned. Check the ticker or try again later.");
+    // If adjusted returns no series, try non-adjusted before failing
+    return await fetchDailyNonAdjusted(ticker);
   }
 
   const parsed = Object.entries(series)
@@ -74,6 +87,41 @@ async function fetchDailyAdjusted(ticker) {
     .sort((a, b) => new Date(a.date) - new Date(b.date));
 
   return parsed; // ascending by date
+}
+
+async function fetchDailyNonAdjusted(ticker) {
+  const url = `${API_BASE}?function=TIME_SERIES_DAILY&symbol=${encodeURIComponent(ticker)}&outputsize=full&apikey=${ALPHA_VANTAGE_API_KEY}`;
+  const resp = await fetch(url, { cache: "no-store" });
+  if (!resp.ok) throw new Error(`Network error: ${resp.status}`);
+  let data;
+  try {
+    data = await resp.json();
+  } catch (e) {
+    throw new Error("Received non-JSON response from API.");
+  }
+  if (data["Note"]) {
+    throw new Error("API rate limit reached. Please wait and try again.");
+  }
+  if (data["Error Message"]) {
+    throw new Error("Ticker not found or invalid API call. Please try another symbol.");
+  }
+  if (data["Information"]) {
+    throw new Error(data["Information"]);
+  }
+
+  const series = data["Time Series (Daily)"];
+  if (!series || Object.keys(series).length === 0) {
+    throw new Error("No daily time series returned. Check the ticker or try again later.");
+  }
+
+  const parsed = Object.entries(series)
+    .map(([date, o]) => ({
+      date,
+      close: Number(o["4. close"]) || NaN,
+    }))
+    .filter((d) => Number.isFinite(d.close))
+    .sort((a, b) => new Date(a.date) - new Date(b.date));
+  return parsed;
 }
 
 function isWeekend(date) {
